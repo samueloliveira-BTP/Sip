@@ -10,8 +10,8 @@
 // @grant        GM_getValue
 // @grant        GM_addValueChangeListener
 // @grant        GM_setClipboard
-// @updateURL    
-// @downloadURL  
+// @updateURL    https://github.com/samueloliveira-BTP/Sip/blob/main/pulse.user.js
+// @downloadURL  https://github.com/samueloliveira-BTP/Sip/blob/main/pulse.user.js
 // ==/UserScript==
 
 (function() {
