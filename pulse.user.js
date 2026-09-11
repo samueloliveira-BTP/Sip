@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Sipulse Omnipresente
 // @namespace    http://tampermonkey.net/
-// @version      4.7.1
-// @description  Ativação via ALT + Q. Fundo Global Forçado (CSS)
+// @version      4.8.1
+// @description  Ativação via ALT + Q. Fundo Global Forçado (CSS). Inclui Script de Abertura (CSA).
 // @author       Samuelluiz280
 // @match        *://*/*
 // @grant        window.focus
@@ -242,6 +242,83 @@
     }
 
     // =========================================================
+    // 📋 1.5 CONFIGURAÇÃO DO SCRIPT DE ABERTURA (CSA ABERTURA)
+    // =========================================================
+    // Cada categoria define seus próprios campos dinâmicos e o template
+    // de texto final. Pra adicionar uma nova categoria, basta acrescentar
+    // um novo objeto nesta lista — a interface e a geração de texto
+    // são construídas automaticamente a partir daqui.
+    const CATEGORIAS_ABERTURA = [
+        {
+            id: 'sem_acesso',
+            label: 'Sem acesso',
+            campos: [
+                { id: 'status_plano', label: 'Plano consta como conectado ou desconectado?', tipo: 'radio', opcoes: ['Conectado', 'Desconectado'] },
+                { id: 'luz_vermelha', label: 'Há alguma luz vermelha acesa nos equipamentos?', tipo: 'texto', placeholder: 'Ex.: Sim, na ONU | Sim, apenas no roteador' },
+                { id: 'reiniciado', label: 'Os equipamentos foram reiniciados?', tipo: 'radio', opcoes: ['Sim', 'Não'] },
+                { id: 'nome_wifi_visivel', label: 'O nome da rede Wi-Fi está visível?', tipo: 'radio', opcoes: ['Sim', 'Não'] },
+                { id: 'atendimentos_recentes', label: 'O cliente possui atendimentos registrados nos últimos 3 meses?', tipo: 'texto', placeholder: 'Ex.: Cliente possui 2 atendimentos nos últimos 3 meses' }
+            ],
+            template: (v) => `Cliente sem acesso.\nPlano consta como: ${v.status_plano || '-'}\nLuz vermelha nos equipamentos: ${v.luz_vermelha || '-'}\nEquipamentos reiniciados: ${v.reiniciado || '-'}\nNome da rede Wi-Fi visível: ${v.nome_wifi_visivel || '-'}\nAtendimentos nos últimos 3 meses: ${v.atendimentos_recentes || '-'}`
+        },
+        {
+            id: 'conexao_lenta',
+            label: 'Conexão lenta',
+            campos: [
+                { id: 'equipamentos', label: 'Em quais equipamentos ocorre a dificuldade?', tipo: 'textarea', placeholder: 'Ex.: celular, notebook, smart tv...' },
+                { id: 'tipo_conexao', label: 'Os dispositivos estão conectados via cabo ou Wi-Fi?', tipo: 'texto', placeholder: 'Ex.: Wi-Fi, cabo, ambos...' },
+                { id: 'horario', label: 'A dificuldade ocorre em algum horário específico?', tipo: 'texto', placeholder: 'Ex.: noite, 18h-22h...' },
+                { id: 'aplicativo', label: 'A dificuldade afeta algum aplicativo específico? Se sim, qual?', tipo: 'textarea', placeholder: 'Ex.: YouTube, Netflix, jogos...' },
+                { id: 'atendimentos_recentes', label: 'O cliente possui atendimentos registrados nos últimos 3 meses?', tipo: 'texto', placeholder: 'Ex.: Cliente possui 2 atendimentos nos últimos 3 meses' }
+            ],
+            template: (v) => `Cliente com conexão lenta.\nEquipamentos afetados: ${v.equipamentos || '-'}\nTipo de conexão: ${v.tipo_conexao || '-'}\nHorário da dificuldade: ${v.horario || '-'}\nAplicativo afetado: ${v.aplicativo || '-'}\nAtendimentos nos últimos 3 meses: ${v.atendimentos_recentes || '-'}`
+        },
+        {
+            id: 'alterar_senha_wifi',
+            label: 'Alterar senha/rede Wi-Fi',
+            campos: [
+                { id: 'nome_rede_atual', label: 'Nome da rede atual', tipo: 'texto', placeholder: 'Ex.: WIFI-CLIENTE' },
+                { id: 'novo_nome_senha', label: 'Novo nome e/ou senha desejados', tipo: 'textarea', placeholder: 'Descreva o que o cliente quer alterar...' }
+            ],
+            template: (v) => `Solicitação de alteração de senha/rede Wi-Fi.\nRede atual: ${v.nome_rede_atual || '-'}\nAlteração solicitada: ${v.novo_nome_senha || '-'}`
+        },
+        {
+            id: 'outras_demandas_suporte',
+            label: 'Outras Demandas - Suporte',
+            campos: [
+                { id: 'descricao_demanda', label: 'Descreva a demanda do cliente', tipo: 'textarea', placeholder: 'Descreva com detalhes...' }
+            ],
+            template: (v) => `Outra demanda de suporte.\nDescrição: ${v.descricao_demanda || '-'}`
+        },
+        {
+            id: 'abertura_outros_setores',
+            label: 'Abertura de atendimento para outros setores (Comercial, SAC, Renegociações e Retenção)',
+            campos: [
+                { id: 'setor_destino', label: 'Setor de destino', tipo: 'texto', placeholder: 'Ex.: Comercial, SAC, Renegociações, Retenção' },
+                { id: 'motivo', label: 'Motivo do encaminhamento', tipo: 'textarea', placeholder: 'Descreva o motivo...' }
+            ],
+            template: (v) => `Abertura de atendimento para outro setor.\nSetor de destino: ${v.setor_destino || '-'}\nMotivo: ${v.motivo || '-'}`
+        },
+        {
+            id: 'transferencia_noc',
+            label: 'Transferência NOC (Cliente B2B, B2G e B2W)',
+            campos: [
+                { id: 'tipo_cliente', label: 'Tipo de cliente', tipo: 'radio', opcoes: ['B2B', 'B2G', 'B2W'] },
+                { id: 'motivo_transferencia', label: 'Motivo da transferência para o NOC', tipo: 'textarea', placeholder: 'Descreva o motivo...' }
+            ],
+            template: (v) => `Transferência para NOC.\nTipo de cliente: ${v.tipo_cliente || '-'}\nMotivo: ${v.motivo_transferencia || '-'}`
+        },
+        {
+            id: 'transferencia_voc',
+            label: 'Transferência Telefonia - VOC',
+            campos: [
+                { id: 'motivo_voc', label: 'Motivo da transferência para o VOC', tipo: 'textarea', placeholder: 'Descreva o motivo...' }
+            ],
+            template: (v) => `Transferência para VOC (Telefonia).\nMotivo: ${v.motivo_voc || '-'}`
+        }
+    ];
+
+    // =========================================================
     // 🎨 2. CONSTRUTOR DA INTERFACE VISUAL (SOB DEMANDA)
     // =========================================================
     let interfaceInjetada = false;
@@ -340,6 +417,55 @@
             #omni-btn-atender { background-color: #3db82e; color: white; border: 1px solid rgba(61, 184, 46, 0.8); border-radius: 50px; padding: 15px 20px; font-size: 18px; font-weight: bold; cursor: pointer; box-shadow: 0 5px 15px rgba(0,0,0,0.5), 0 0 20px rgba(61, 184, 46, 0.4); width: 100%; display: flex; justify-content: center; align-items: center; gap: 10px; transition: all 0.2s;}
             #omni-btn-atender:hover { background-color: #44cc33; box-shadow: 0 0 25px rgba(61, 184, 46, 0.6);}
             #omni-btn-atender:active { transform: scale(0.95); }
+
+            /* --- SCRIPT DE ABERTURA (CSA) --- */
+            #omni-btn-abrir-atendimento { margin-top: 14px; width: 100%; background: rgba(0, 195, 255, 0.15); border: 1px solid rgba(0, 195, 255, 0.4); color: #fff; font-size: 12px; font-weight: bold; padding: 8px 10px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s; backdrop-filter: blur(6px);}
+            #omni-btn-abrir-atendimento:hover { background: rgba(0, 195, 255, 0.3); box-shadow: 0 0 10px rgba(0, 195, 255, 0.4);}
+            #omni-btn-abrir-atendimento:active { transform: scale(0.96); }
+
+            #omni-tela-abertura { display: none; max-height: 480px; overflow-y: auto; }
+            .omni-abertura-header { display: flex; align-items: center; gap: 8px; padding: 12px 16px; background: rgba(8, 14, 24, 0.97); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(0, 195, 255, 0.35); box-shadow: 0 4px 12px rgba(0,0,0,0.55); position: sticky; top: 0; z-index: 5; }
+            .omni-abertura-header span { color: #fff; font-weight: 700; font-size: 13px; letter-spacing: 0.5px; }
+            #omni-btn-voltar-abertura { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
+            #omni-btn-voltar-abertura:hover { background: rgba(255,255,255,0.2); }
+
+            .omni-abertura-corpo { padding: 14px 16px 18px; }
+            .omni-abertura-bloco { margin-bottom: 16px; }
+            .omni-abertura-label-bloco { display: block; color: #00c3ff; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+
+            .omni-abertura-input, .omni-abertura-textarea {
+                width: 100%; background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px;
+                color: #fff; font-size: 13px; padding: 9px 10px; margin-bottom: 8px; outline: none; box-sizing: border-box;
+                font-family: inherit; resize: vertical; transition: border-color 0.2s;
+            }
+            .omni-abertura-input:focus, .omni-abertura-textarea:focus { border-color: #00c3ff; box-shadow: 0 0 8px rgba(0, 195, 255, 0.3); }
+            .omni-abertura-input::placeholder, .omni-abertura-textarea::placeholder { color: rgba(255,255,255,0.4); }
+
+            .omni-abertura-categoria-btn {
+                width: 100%; text-align: left; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15);
+                color: #fff; font-size: 12.5px; font-weight: 600; padding: 10px 12px; border-radius: 8px; margin-bottom: 6px;
+                cursor: pointer; transition: all 0.2s;
+            }
+            .omni-abertura-categoria-btn:hover { border-color: rgba(0, 195, 255, 0.5); background: rgba(0,0,0,0.6); }
+            .omni-abertura-categoria-btn.selecionada { background: rgba(0, 195, 255, 0.2); border-color: #00c3ff; box-shadow: 0 0 8px rgba(0, 195, 255, 0.3); }
+
+            .omni-abertura-campo-label { display: block; color: rgba(255,255,255,0.85); font-size: 12px; margin-bottom: 4px; margin-top: 6px; }
+            .omni-abertura-radios { display: flex; gap: 14px; margin-bottom: 8px; }
+            .omni-abertura-radios label { display: flex; align-items: center; gap: 5px; color: #fff; font-size: 12.5px; cursor: pointer; }
+            .omni-abertura-radios input[type="radio"] { accent-color: #00c3ff; cursor: pointer; }
+
+            .omni-abertura-finalizar { border-top: 1px solid rgba(255,255,255,0.1); padding-top: 14px; margin-top: 4px; }
+            .omni-abertura-botoes-finais { display: flex; gap: 8px; margin-bottom: 10px; }
+            .omni-abertura-botoes-finais button {
+                flex: 1; border: none; border-radius: 8px; padding: 9px 6px; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s;
+            }
+            #omni-btn-gerar-script { background: #0077cc; color: #fff; }
+            #omni-btn-gerar-script:hover { background: #0088e6; box-shadow: 0 0 10px rgba(0, 136, 230, 0.5); }
+            #omni-btn-copiar-script { background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.2) !important; }
+            #omni-btn-copiar-script:hover { background: rgba(255,255,255,0.22); }
+            #omni-btn-limpar-script { background: rgba(217, 83, 79, 0.2); color: #ffb3b0; border: 1px solid rgba(217, 83, 79, 0.4) !important; }
+            #omni-btn-limpar-script:hover { background: rgba(217, 83, 79, 0.35); }
+            .omni-abertura-resultado { background: rgba(0,0,0,0.7); font-size: 12px; color: #d5f5ff; min-height: 100px; }
         `;
         document.head.appendChild(estilo);
 
@@ -370,6 +496,10 @@
                         <div id="omni-ativa-numero" style="color: white; font-size: 20px; font-weight: bold; letter-spacing: 1px; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">Buscando...</div>
                         <div id="omni-ativa-tempo" style="color: #39ff14; font-size: 16px; font-weight: bold; font-family: monospace; margin-top: 2px; text-shadow: 0 0 5px rgba(57, 255, 20, 0.5);">00:00</div>
                         <div id="omni-ativa-protocolo" title="Clique para copiar" style="color: #ffc107; font-size: 12px; font-weight: bold; margin-top: 8px; cursor: pointer; display: none; background: rgba(255, 193, 7, 0.1); padding: 4px 8px; border-radius: 12px; border: 1px solid rgba(255, 193, 7, 0.3);"></div>
+                        <button id="omni-btn-abrir-atendimento" title="Abrir Script de Atendimento (CSA Abertura)">
+                            <svg fill="white" viewBox="0 0 24 24" width="16px" height="16px"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+                            Abrir Atendimento
+                        </button>
                     </div>
 
                     <div class="omni-visor-bg ativo-azul" id="container-visor-ligar">
@@ -391,7 +521,7 @@
                     </div>
 
                     <div class="omni-linha-acao">
-                        <button id="omni-btn-apagar" class="omni-btn-acao" title="Apagar Número">X</button>
+                        <button id="omni-btn-apagar" class="omni-btn-acao" title="Desligar Chamada (finaliza transferência, sem pesquisa de satisfação)">X</button>
 
                         <button id="omni-btn-mutar" class="omni-btn-acao" title="Mutar/Desmutar Microfone">
                             <svg fill="white" viewBox="0 0 24 24" width="20px" height="20px"><path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg>
@@ -413,6 +543,41 @@
                         <svg fill="white" viewBox="0 0 24 24" width="24px" height="24px"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
                         ATENDER
                     </button>
+                </div>
+
+                <div id="omni-tela-abertura">
+                    <div class="omni-abertura-header">
+                        <button id="omni-btn-voltar-abertura" title="Voltar">
+                            <svg fill="white" viewBox="0 0 24 24" width="18px" height="18px"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                        </button>
+                        <span>SCRIPT · CSA ABERTURA</span>
+                    </div>
+
+                    <div class="omni-abertura-corpo">
+                        <div class="omni-abertura-bloco">
+                            <label class="omni-abertura-label-bloco">Dados do contato</label>
+                            <input type="text" id="omni-abertura-nome" class="omni-abertura-input" placeholder="Nome de quem entrou em contato" autocomplete="off"/>
+                            <input type="text" id="omni-abertura-telefone" class="omni-abertura-input" placeholder="(DDD) 9xxxx-xxxx" autocomplete="off"/>
+                            <input type="text" id="omni-abertura-protocolo" class="omni-abertura-input" placeholder="Protocolo HPBX (preenchido automaticamente)" autocomplete="off"/>
+                            <textarea id="omni-abertura-relato" class="omni-abertura-textarea" placeholder="Descreva com detalhes o relato do(a) cliente..." rows="3"></textarea>
+                        </div>
+
+                        <div class="omni-abertura-bloco">
+                            <label class="omni-abertura-label-bloco">Categoria da demanda</label>
+                            <div id="omni-abertura-categorias"></div>
+                        </div>
+
+                        <div id="omni-abertura-campos-dinamicos"></div>
+
+                        <div class="omni-abertura-bloco omni-abertura-finalizar">
+                            <div class="omni-abertura-botoes-finais">
+                                <button id="omni-btn-gerar-script">⚡ Gerar Script</button>
+                                <button id="omni-btn-copiar-script">📋 Copiar</button>
+                                <button id="omni-btn-limpar-script">🗑️ Limpar</button>
+                            </div>
+                            <textarea id="omni-abertura-resultado" class="omni-abertura-textarea omni-abertura-resultado" placeholder="Clique em 'Gerar Script' para montar o texto..." rows="6" readonly></textarea>
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
@@ -461,7 +626,12 @@
         document.querySelectorAll('.omni-btn-num').forEach(btn => {
             btn.addEventListener('click', (e) => { inputAtivo.value += e.target.innerText; inputAtivo.focus(); });
         });
-        document.getElementById('omni-btn-apagar').addEventListener('click', () => { inputAtivo.value = ''; inputAtivo.focus(); });
+        document.getElementById('omni-btn-apagar').addEventListener('click', () => {
+            inputAtivo.value = ''; inputAtivo.focus();
+            // Desliga a ligação de verdade (clica no botão nativo "call_end" do Sipulse),
+            // sem mandar pra pesquisa de satisfação — é o gatilho pra finalizar a transferência.
+            GM_setValue('omni_comando', { acao: 'desligar_manual', ts: Date.now() });
+        });
 
         visorLigar.addEventListener('keydown', function(event) { if (event.key === 'Enter') { event.preventDefault(); document.getElementById('omni-btn-ligar').click(); }});
         visorTransferir.addEventListener('keydown', function(event) { if (event.key === 'Enter') { event.preventDefault(); document.getElementById('omni-btn-transferir').click(); }});
@@ -552,6 +722,168 @@
         document.addEventListener('click', (e) => {
             if (!inputBusca.contains(e.target) && !dropdownLista.contains(e.target)) { dropdownLista.style.display = 'none'; }
         });
+
+        // --- LÓGICA DA TELA DE ABERTURA (CSA ABERTURA) ---
+        const telaAbertura = document.getElementById('omni-tela-abertura');
+        const telaTecladoEl = document.getElementById('omni-tela-teclado');
+        const barraBuscaEl = document.querySelector('.omni-busca-container');
+        const containerCategorias = document.getElementById('omni-abertura-categorias');
+        const containerCamposDinamicos = document.getElementById('omni-abertura-campos-dinamicos');
+        const inputNomeAbertura = document.getElementById('omni-abertura-nome');
+        const inputTelefoneAbertura = document.getElementById('omni-abertura-telefone');
+        const inputProtocoloAbertura = document.getElementById('omni-abertura-protocolo');
+        const textareaRelato = document.getElementById('omni-abertura-relato');
+        const textareaResultado = document.getElementById('omni-abertura-resultado');
+
+        let categoriaSelecionadaId = null;
+
+        // Monta os botões de categoria a partir da config CATEGORIAS_ABERTURA
+        CATEGORIAS_ABERTURA.forEach(categoria => {
+            const btn = document.createElement('button');
+            btn.className = 'omni-abertura-categoria-btn';
+            btn.type = 'button';
+            btn.innerText = categoria.label;
+            btn.dataset.categoriaId = categoria.id;
+            btn.addEventListener('click', () => selecionarCategoria(categoria.id));
+            containerCategorias.appendChild(btn);
+        });
+
+        function selecionarCategoria(categoriaId) {
+            categoriaSelecionadaId = categoriaId;
+
+            containerCategorias.querySelectorAll('.omni-abertura-categoria-btn').forEach(b => {
+                b.classList.toggle('selecionada', b.dataset.categoriaId === categoriaId);
+            });
+
+            const categoria = CATEGORIAS_ABERTURA.find(c => c.id === categoriaId);
+            containerCamposDinamicos.innerHTML = '';
+            if (!categoria) return;
+
+            const bloco = document.createElement('div');
+            bloco.className = 'omni-abertura-bloco';
+
+            categoria.campos.forEach(campo => {
+                const label = document.createElement('label');
+                label.className = 'omni-abertura-campo-label';
+                label.innerText = campo.label;
+                bloco.appendChild(label);
+
+                if (campo.tipo === 'texto') {
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.className = 'omni-abertura-input';
+                    input.placeholder = campo.placeholder || '';
+                    input.dataset.campoId = campo.id;
+                    bloco.appendChild(input);
+                } else if (campo.tipo === 'textarea') {
+                    const textarea = document.createElement('textarea');
+                    textarea.className = 'omni-abertura-textarea';
+                    textarea.rows = 2;
+                    textarea.placeholder = campo.placeholder || '';
+                    textarea.dataset.campoId = campo.id;
+                    bloco.appendChild(textarea);
+                } else if (campo.tipo === 'radio') {
+                    const radios = document.createElement('div');
+                    radios.className = 'omni-abertura-radios';
+                    campo.opcoes.forEach(opcao => {
+                        const lbl = document.createElement('label');
+                        const radio = document.createElement('input');
+                        radio.type = 'radio';
+                        radio.name = 'omni-abertura-radio-' + campo.id;
+                        radio.value = opcao;
+                        radio.dataset.campoId = campo.id;
+                        lbl.appendChild(radio);
+                        lbl.appendChild(document.createTextNode(opcao));
+                        radios.appendChild(lbl);
+                    });
+                    bloco.appendChild(radios);
+                }
+            });
+
+            containerCamposDinamicos.appendChild(bloco);
+        }
+
+        function coletarValoresCampos() {
+            const valores = {};
+            containerCamposDinamicos.querySelectorAll('[data-campo-id]').forEach(el => {
+                if (el.type === 'radio') {
+                    if (el.checked) valores[el.dataset.campoId] = el.value;
+                } else {
+                    valores[el.dataset.campoId] = el.value.trim();
+                }
+            });
+            return valores;
+        }
+
+        function abrirTelaAbertura() {
+            telaTecladoEl.style.display = 'none';
+            barraBuscaEl.style.display = 'none';
+            telaAbertura.style.display = 'block';
+
+            // Pré-preenche com dados já capturados automaticamente da chamada ativa
+            const estadoChamada = GM_getValue('omni_estado_chamada', { status: 'livre', numero: '', protocolo: '' });
+            if (estadoChamada.status === 'ativa' && estadoChamada.numero && !inputTelefoneAbertura.value) {
+                inputTelefoneAbertura.value = estadoChamada.numero;
+            }
+            if (estadoChamada.status === 'ativa' && estadoChamada.protocolo && !inputProtocoloAbertura.value) {
+                inputProtocoloAbertura.value = estadoChamada.protocolo;
+            }
+        }
+
+        function fecharTelaAbertura() {
+            telaAbertura.style.display = 'none';
+            telaTecladoEl.style.display = 'block';
+            barraBuscaEl.style.display = 'block';
+        }
+
+        // O protocolo costuma aparecer alguns instantes DEPOIS do início da chamada
+        // (a engine de fundo só o encontra via regex quando o texto surge na tela).
+        // Por isso, além do preenchimento ao abrir a tela, ficamos escutando o estado
+        // da chamada e atualizamos o campo assim que o protocolo chegar.
+        GM_addValueChangeListener('omni_estado_chamada', (nome, antigo, novoEstado) => {
+            if (telaAbertura.style.display !== 'block') return;
+            if (novoEstado.protocolo && !inputProtocoloAbertura.value) {
+                inputProtocoloAbertura.value = novoEstado.protocolo;
+            }
+            if (novoEstado.numero && !inputTelefoneAbertura.value) {
+                inputTelefoneAbertura.value = novoEstado.numero;
+            }
+        });
+
+        document.getElementById('omni-btn-abrir-atendimento').addEventListener('click', abrirTelaAbertura);
+        document.getElementById('omni-btn-voltar-abertura').addEventListener('click', fecharTelaAbertura);
+
+        document.getElementById('omni-btn-gerar-script').addEventListener('click', () => {
+            const categoria = CATEGORIAS_ABERTURA.find(c => c.id === categoriaSelecionadaId);
+            if (!categoria) {
+                textareaResultado.value = 'Selecione uma categoria da demanda antes de gerar o script.';
+                return;
+            }
+
+            const valores = coletarValoresCampos();
+            const cabecalho = `Nome do contato: ${inputNomeAbertura.value.trim() || '-'}\nTelefone: ${inputTelefoneAbertura.value.trim() || '-'}\nProtocolo: ${inputProtocoloAbertura.value.trim() || '-'}\nRelato do cliente: ${textareaRelato.value.trim() || '-'}\n\n`;
+            textareaResultado.value = cabecalho + categoria.template(valores);
+        });
+
+        document.getElementById('omni-btn-copiar-script').addEventListener('click', function() {
+            if (!textareaResultado.value) return;
+            GM_setClipboard(textareaResultado.value);
+            const textoOriginal = this.innerText;
+            this.innerText = '✔️ Copiado!';
+            setTimeout(() => { this.innerText = textoOriginal; }, 1500);
+        });
+
+        document.getElementById('omni-btn-limpar-script').addEventListener('click', () => {
+            inputNomeAbertura.value = '';
+            inputTelefoneAbertura.value = '';
+            inputProtocoloAbertura.value = '';
+            textareaRelato.value = '';
+            textareaResultado.value = '';
+            categoriaSelecionadaId = null;
+            containerCategorias.querySelectorAll('.omni-abertura-categoria-btn').forEach(b => b.classList.remove('selecionada'));
+            containerCamposDinamicos.innerHTML = '';
+        });
+        // --- FIM LÓGICA DA TELA DE ABERTURA ---
 
         const ramalSalvo = GM_getValue('omni_ramal', '');
         if (ramalSalvo) document.getElementById('omni-ramal-texto').innerText = "| RAMAL: " + ramalSalvo;
