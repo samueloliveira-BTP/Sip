@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Sipulse Omnipresente
 // @namespace    http://tampermonkey.net/
-// @version      4.9.3
+// @version      5.0
 // @description  Ativação via ALT + Q. Fundo Global Forçado (CSS). Inclui Script de Abertura (CSA).
-// @author       Samuel Oliveira
+// @author       Samuelluiz280
 // @match        *://*/*
 // @grant        window.focus
 // @grant        GM_setValue
@@ -22,7 +22,7 @@
     const isSipulseTab = window.location.href.includes("hpbx01.brasiltecpar.com.br");
     const LINK_IMAGEM_FUNDO = "https://static.wixstatic.com/media/300e5a_95808568788d49c6a0e1a90a4dcfebf8~mv2.png/v1/fill/w_1851,h_900,al_c,q_90,usm_0.66_1.00_0.01,enc_avif,quality_auto/300e5a_95808568788d49c6a0e1a90a4dcfebf8~mv2.png";
 
-    // 
+    // 🧹 Função para apagar o que estiver escrito no campo antes de digitar o código
     function limparInputTelefone() {
         const inputs = Array.from(document.querySelectorAll('input:not([type="hidden"]):not([id*="omni"])'));
         const input = inputs.find(i => i.placeholder && i.placeholder.toLowerCase().includes('n')) || inputs[0];
@@ -35,7 +35,7 @@
         }
     }
 
-    // 
+    // 🤖 Função que clica fisicamente nos botões do painel lateral do usuário
     async function executarComandoTecladoVirtual(sequencia, clicaLigarNoFinal) {
         limparInputTelefone();
         await new Promise(resolve => setTimeout(resolve, 150));
@@ -61,10 +61,10 @@
         }
     }
 
-    // 
+    // 🔒 Função para forçar o Auto Atendimento e ocultá-lo (Angular Material / DOM)
     function enforcarAutoAtendimento() {
-        // 
-        // 
+        // --- A TRAVA DE SEGURANÇA (BYPASS) ---
+        // Se o bypass estiver ativado, a função restaura a visibilidade e morre aqui
         if (GM_getValue('omni_bypass_auto_atendimento', false)) {
             const todosElementos = document.querySelectorAll('mat-checkbox, label');
             todosElementos.forEach(el => {
@@ -126,8 +126,8 @@
     // =========================================================
     if (isSipulseTab) {
 
-        // 
-        // 
+        // --- APLICA A IMAGEM DE FUNDO GLOBAL NO SIPULSE (VIA CSS FORÇADO) ---
+        // Isso impede que o Angular sobreescreva a nossa imagem de fundo
         const estiloFundo = document.createElement('style');
         estiloFundo.innerHTML = `
             body, html, app-root, .mat-app-background, .mat-drawer-container, mat-sidenav-container {
@@ -148,10 +148,31 @@
         if (Notification.permission !== "granted" && Notification.permission !== "denied") { Notification.requestPermission(); }
         let notificacaoJaDisparada = false;
 
-        // 
+        // 🛡️ Garante que a opção de Auto Atendimento fique marcada e invisível
         setInterval(enforcarAutoAtendimento, 1000);
 
-        setInterval(() => {
+        // 📞 Tenta capturar o número/nome do cliente em rótulos comuns de tela de
+    // atendimento, e como último recurso, qualquer padrão de telefone BR solto
+    // no texto. Usado como fallback quando a fase "tocando" não foi detectada
+    // a tempo (ex.: chamada já entra atendida por causa do Auto Atendimento).
+    function capturarNumeroPorRotulos(texto) {
+        const rotulos = [
+            /Telefone:\s*([+\d()\-.\s]{8,20})/i,
+            /N[uú]mero(?: do cliente)?:\s*([+\d()\-.\s]{8,20})/i,
+            /Origem:\s*([+\d()\-.\s]{8,20})/i,
+            /Cliente:\s*([^\n]+)/i,
+            /Contato:\s*([^\n]+)/i,
+            /Chamador:\s*([^\n]+)/i
+        ];
+        for (const regex of rotulos) {
+            const m = texto.match(regex);
+            if (m && m[1] && m[1].trim()) return m[1].trim();
+        }
+        const matchSolto = texto.match(/\(?\d{2}\)?\s?9?\d{4}[-.\s]?\d{4}/);
+        return matchSolto ? matchSolto[0].trim() : '';
+    }
+
+    setInterval(() => {
             const textoDaTela = document.body.innerText;
 
             const matchRamal = textoDaTela.match(/Ramal:\s*(\d+)/i);
@@ -191,8 +212,21 @@
             }
             else if (btnEncerrarNaTela) {
                 if (estadoAtual.status !== 'ativa') {
-                    novoStatus = 'ativa'; novoNumero = estadoAtual.numero || "Em Andamento"; novoInicio = Date.now(); novoCopiado = false; houveMudanca = true;
+                    novoStatus = 'ativa'; novoInicio = Date.now(); novoCopiado = false; houveMudanca = true;
                 }
+
+                // Se o número ainda está vazio ou preso no fallback genérico
+                // (ligação entrou direto como ativa, sem passar pelo "tocando"),
+                // tenta capturar o número/nome do cliente por outros rótulos da tela.
+                if (!novoNumero || novoNumero === 'Em Andamento') {
+                    const numeroCapturado = capturarNumeroPorRotulos(textoDaTela);
+                    if (numeroCapturado && numeroCapturado !== novoNumero) {
+                        novoNumero = numeroCapturado; houveMudanca = true;
+                    } else if (!novoNumero) {
+                        novoNumero = 'Em Andamento'; houveMudanca = true;
+                    }
+                }
+
                 if (protocoloEncontrado && protocoloEncontrado !== novoProtocolo) {
                     novoProtocolo = protocoloEncontrado; houveMudanca = true;
                 }
@@ -244,10 +278,10 @@
     // =========================================================
     // 📋 1.5 CONFIGURAÇÃO DO SCRIPT DE ABERTURA (CSA ABERTURA)
     // =========================================================
-    // 
-    // 
-    // 
-    // 
+    // Cada categoria define seus próprios campos dinâmicos e o template
+    // de texto final. Pra adicionar uma nova categoria, basta acrescentar
+    // um novo objeto nesta lista — a interface e a geração de texto
+    // são construídas automaticamente a partir daqui.
     const CATEGORIAS_ABERTURA = [
         {
             id: 'sem_acesso',
@@ -639,8 +673,8 @@
         document.getElementById('omni-btn-ligar').addEventListener('click', () => {
             const numeroDigitado = visorLigar.value;
 
-            // --- A TRAVA DE SEGURANÇA
-            if (numeroDigitado === '2026*2026') {
+            // --- A TRAVA DE SEGURANÇA SENDO DIGITADA ---
+            if (numeroDigitado === '*00009#') {
                 const estadoAtual = GM_getValue('omni_bypass_auto_atendimento', false);
                 GM_setValue('omni_bypass_auto_atendimento', !estadoAtual); // Inverte o estado
 
