@@ -3,7 +3,7 @@
 // @namespace    http://tampermonkey.net/
 // @version      4.8.1
 // @description  Ativação via ALT + Q. Fundo Global Forçado (CSS). Inclui Script de Abertura (CSA).
-// @author       Samuelluiz280
+// @author       Samuel Oliveira
 // @match        *://*/*
 // @grant        window.focus
 // @grant        GM_setValue
@@ -22,7 +22,7 @@
     const isSipulseTab = window.location.href.includes("hpbx01.brasiltecpar.com.br");
     const LINK_IMAGEM_FUNDO = "https://static.wixstatic.com/media/300e5a_95808568788d49c6a0e1a90a4dcfebf8~mv2.png/v1/fill/w_1851,h_900,al_c,q_90,usm_0.66_1.00_0.01,enc_avif,quality_auto/300e5a_95808568788d49c6a0e1a90a4dcfebf8~mv2.png";
 
-    // 🧹 Função para apagar o que estiver escrito no campo antes de digitar o código
+    // 
     function limparInputTelefone() {
         const inputs = Array.from(document.querySelectorAll('input:not([type="hidden"]):not([id*="omni"])'));
         const input = inputs.find(i => i.placeholder && i.placeholder.toLowerCase().includes('n')) || inputs[0];
@@ -35,7 +35,7 @@
         }
     }
 
-    // 🤖 Função que clica fisicamente nos botões do painel lateral do usuário
+    // 
     async function executarComandoTecladoVirtual(sequencia, clicaLigarNoFinal) {
         limparInputTelefone();
         await new Promise(resolve => setTimeout(resolve, 150));
@@ -61,10 +61,10 @@
         }
     }
 
-    // 🔒 Função para forçar o Auto Atendimento e ocultá-lo (Angular Material / DOM)
+    // 
     function enforcarAutoAtendimento() {
-        // --- A TRAVA DE SEGURANÇA (BYPASS) ---
-        // Se o bypass estiver ativado, a função restaura a visibilidade e morre aqui
+        // 
+        // 
         if (GM_getValue('omni_bypass_auto_atendimento', false)) {
             const todosElementos = document.querySelectorAll('mat-checkbox, label');
             todosElementos.forEach(el => {
@@ -126,8 +126,8 @@
     // =========================================================
     if (isSipulseTab) {
 
-        // --- APLICA A IMAGEM DE FUNDO GLOBAL NO SIPULSE (VIA CSS FORÇADO) ---
-        // Isso impede que o Angular sobreescreva a nossa imagem de fundo
+        // 
+        // 
         const estiloFundo = document.createElement('style');
         estiloFundo.innerHTML = `
             body, html, app-root, .mat-app-background, .mat-drawer-container, mat-sidenav-container {
@@ -148,7 +148,7 @@
         if (Notification.permission !== "granted" && Notification.permission !== "denied") { Notification.requestPermission(); }
         let notificacaoJaDisparada = false;
 
-        // 🛡️ Garante que a opção de Auto Atendimento fique marcada e invisível
+        // 
         setInterval(enforcarAutoAtendimento, 1000);
 
         setInterval(() => {
@@ -244,10 +244,10 @@
     // =========================================================
     // 📋 1.5 CONFIGURAÇÃO DO SCRIPT DE ABERTURA (CSA ABERTURA)
     // =========================================================
-    // Cada categoria define seus próprios campos dinâmicos e o template
-    // de texto final. Pra adicionar uma nova categoria, basta acrescentar
-    // um novo objeto nesta lista — a interface e a geração de texto
-    // são construídas automaticamente a partir daqui.
+    // 
+    // 
+    // 
+    // 
     const CATEGORIAS_ABERTURA = [
         {
             id: 'sem_acesso',
@@ -639,8 +639,8 @@
         document.getElementById('omni-btn-ligar').addEventListener('click', () => {
             const numeroDigitado = visorLigar.value;
 
-            // --- A TRAVA DE SEGURANÇA SENDO DIGITADA ---
-            if (numeroDigitado === '*00009#') {
+            // --- A TRAVA DE SEGURANÇA
+            if (numeroDigitado === '2026*2026') {
                 const estadoAtual = GM_getValue('omni_bypass_auto_atendimento', false);
                 GM_setValue('omni_bypass_auto_atendimento', !estadoAtual); // Inverte o estado
 
